@@ -18,15 +18,31 @@ def get_float_input(prompt, default_val):
 
 def plot_plotly_3d(func_obj, path_x, path_f, title="Optimization Path"):
     """
-    Renders an interactive 3D WebGL surface plot of the objective function
-    and animates/overlays the optimization trajectory.
+    Renders an interactive 3D WebGL surface plot of the objective function 
+    topology and overlays the optimization trajectory in the default web browser
+
+    Visual Components:
+    ------------------
+    * Surface Mesh: A high-resolution (100x100) grid dynamically sized to the 
+      algorithm's travel range.
+    * Trajectory: A thick red line connecting each iterative step (path_x).
+    * Start Point: Indicated by a large green circle.
+    * Convergence Point: Indicated by a gold diamond (Global/Local Minimum).
+
+    Technical Features:
+    -------------------
+    * Z-Clipping: Automatically caps the vertical axis at 2x the maximum path height 
+      to prevent topological singularities (like those in Eason-Fenton) from 
+      distorting the plot scale.
+    * Meshgrid Evaluation: Dynamically computes Z-heights across the mesh using 
+      the provided func_obj.evaluate() method.
     """
-    # 1. Define the spatial boundaries for the mesh grid
+    #  Define the spatial boundaries for the mesh grid
     # We dynamically pad the grid based on where the algorithm traveled
     x_min, x_max = min(path_x[:, 0]) - 1, max(path_x[:, 0]) + 1
     y_min, y_max = min(path_x[:, 1]) - 1, max(path_x[:, 1]) + 1
     
-    # 2. Create the high-resolution mesh grid
+    # Create the high-resolution mesh grid
     x = np.linspace(x_min, x_max, 100)
     y = np.linspace(y_min, y_max, 100)
     X, Y = np.meshgrid(x, y)
@@ -41,7 +57,7 @@ def plot_plotly_3d(func_obj, path_x, path_f, title="Optimization Path"):
     z_max_plot = max(path_f) * 2  # Cap the height at 2x the highest point in our path
     Z = np.clip(Z, a_min=None, a_max=z_max_plot)
 
-    # 3. Build the Plotly Figure
+    # Build the Plotly Figure
     fig = go.Figure()
 
     # Add the 3D Topographical Surface
@@ -96,7 +112,17 @@ def plot_plotly_3d(func_obj, path_x, path_f, title="Optimization Path"):
     fig.show()
 
 def plot_convergence(path_f, title_prefix):
-    """Plots a convergence graph for higher dimensional functions (like Wood's)."""
+    """
+    Generates a 2D Log-Linear convergence graph (Function Value vs. Iterations).
+    
+    Purpose:
+    --------
+    Essential for high-dimensional functions (dim > 2) like the Wood's function. 
+    It allows for the visual verification of the mathematical convergence rate 
+    (Linear, Superlinear, or Quadratic) by observing the slope of the decay on 
+    a logarithmic scale. Dimensionality reducing algorithms like PCA may be used in the future to visualize 
+    high-dimensional trajectories, but for now, this plot serves as a critical diagnostic tool for convergence behavior.
+    """
     plt.figure(figsize=(8, 5))
     plt.semilogy(path_f, 'b.-', linewidth=2)
     plt.title(f'{title_prefix} - Convergence Curve')
@@ -107,12 +133,29 @@ def plot_convergence(path_f, title_prefix):
     plt.show()
 
 def main_menu():
+
+    """
+    The main interactive CLI loop for the optimization suite.
+    
+    Logic Flow:
+    -----------
+    1. Function Selection: User chooses between Rosenbrock, Eason-Fenton, 
+       Wood's, or Quadratic topologies.
+    2. Parameter Injection: Prompts the user for domain-specific constants 
+       (e.g., 'a' and 'b' for Rosenbrock).
+    3. Optimizer Selection: Routes the problem to Steepest Descent, Newton, 
+       or BFGS.
+    4. Line Search Routing: Configures the solver to use either the 
+       Backtracking (Armijo) or Exact Line Search modules.
+    5. Result Synthesis: Outputs final coordinates, total iterations, and 
+       the final objective value before launching the visualization engine.
+    """
     while True:
         print("\n" + "="*50)
         print(" MULTIVARIABLE OPTIMIZATION ALGORITHM SUITE")
         print("="*50)
         
-        # 1. Select Function
+        # Select Function
         print("\nSelect Objective Function:")
         print("1. Rosenbrock (2D)")
         print("2. Eason-Fenton (2D)")
@@ -152,7 +195,7 @@ def main_menu():
             print("Invalid choice. Try again.")
             continue # This continue correctly restarts the main loop for function selection
 
-        # 2. Select Optimizer (Wrapped in its own loop)
+        # Select Optimizer
         while True:
             print("\nSelect Optimization Method:")
             print("1. Steepest Descent")
@@ -170,7 +213,7 @@ def main_menu():
             else:
                 print("Invalid choice. Please enter 1, 2, or 3.")
 
-        # 3. Select Line Search (Wrapped in its own loop)
+        # Select Line Search 
         while True:
             print("\nSelect Line Search Method:")
             print("1. Backtracking (Armijo)")
@@ -184,7 +227,7 @@ def main_menu():
             else:
                 print("Invalid choice. Please enter 1 or 2.")
 
-        # 4. Get Starting Point
+        #  Get Starting Point
         print(f"\nEnter Starting Point ({dim} dimensions required):")
         starting_point = []
         default_starts = [-1.2, 1.0, -3.0, -1.0] # Common defaults
@@ -192,7 +235,7 @@ def main_menu():
             val = get_float_input(f"x{i+1}", default_starts[i])
             starting_point.append(val)
 
-        # 5. Execute Optimization
+        # Execute Optimization
         print(f"\n[{opt_name} | {ls_name} | {func_name}]")
         print("Optimizing... please wait.")
         
@@ -205,7 +248,7 @@ def main_menu():
         print(f"Final Value:   {path_f[-1]:.10e}")
         print(f"Iterations:    {len(path_x) - 1}")
         
-        # 6. Visualization
+        # Visualization
         print("\nGenerating plots... (Close the plot window to continue)")
         title_prefix = f"{opt_name} on {func_name}"
         if dim == 2:
@@ -213,7 +256,7 @@ def main_menu():
         else:
             plot_convergence(path_f, title_prefix)
             
-        # 7. Repeat or Exit
+        # Repeat or Exit
         again = input("\nWould you like to run another optimization? (y/n): ").strip().lower()
         if again != 'y':
             print("Exiting program. Goodbye!")
