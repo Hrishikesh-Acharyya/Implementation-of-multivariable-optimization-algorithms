@@ -1,5 +1,8 @@
 # Multivariable Optimization Algorithm Suite
 **A Computational Engineering Framework for Unconstrained Non-Linear Optimization**
+<p align="center">
+  <img src="./assets/BFGS_on_Eason_Fenton.png" alt="BFGS Optimization Path on Eason-Fenton Topology" width="800"/>
+</p>
 
 This repository provides a  mathematically hardened suite of multivariable optimization algorithms. Built to analyze and solve highly non-convex objective topologies, the suite features advanced numerical safeguards, dynamically routed line search algorithms, and large-scale statistical benchmarking utilizing the **Dolan-Moré Performance Profile** methodology.
 
@@ -60,14 +63,35 @@ The algorithms are stress-tested against standard optimization benchmarks:
 
 Single-run comparisons are mathematically insufficient for evaluating algorithmic robustness. This suite utilizes **Dolan-Moré Performance Profiles** (`benchmark.py`) to conduct large-scale empirical studies.
 
-**Methodology:**
-1. The engine generates 90+ randomized starting coordinates across all topologies.
-2. It tracks **CPU Time**, **Iteration Count**, and **Total Function Calls** for every solver.
-3. It generates a Cumulative Distribution Function (CDF) mapping the Performance Ratio $\tau$ against the Fraction of Problems Solved $\rho$.
+### 1. Convergence Rate Analysis
+By tracking the $Log_{10}$ decay of the objective function value, we can visually verify the theoretical convergence properties of the solvers. Note the distinct quadratic plunge of Newton's Method compared to the linear plateau of Steepest Descent.
 
-**How to Read the Output:**
-The resulting logarithmic graphs show which algorithm is the fastest (highest Y-intercept) and which is the most robust (reaches $\rho = 1.0$ the fastest).
+<p align="center">
+  <img src="./assets/Convergence_Comparison.png" alt="Convergence Rates Log Scale" width="800"/>
+</p>
 
+### 2. Dolan-Moré Performance Profiles
+To prove statistical dominance, the algorithms were tested against 90 randomized starting coordinates spanning the three topologies. The resulting Cumulative Distribution Functions (CDFs) map the Performance Ratio $\tau$ against the Fraction of Problems Solved $\rho$. 
+
+*Note: A curve that is higher and further to the left represents a more robust and efficient algorithm.*
+
+#### Iteration Efficiency
+Newton's method dominates in raw algorithmic intelligence, solving nearly 100% of randomized topologies in the fewest possible steps. Steepest descent fails to converge within acceptable thresholds on highly non-convex features.
+<p align="center">
+  <img src="./assets/Iteration.png" alt="Dolan-More Iterations Profile" width="800"/>
+</p>
+
+#### Computational Cost (CPU Time)
+When factoring in the $\mathcal{O}(N^3)$ cost of exact Hessian inversion, BFGS (green) effectively matches Newton's method (orange) in real-world wall-clock time, highlighting the efficiency of the secant approximation.
+<p align="center">
+  <img src="./assets/CPU_time.png" alt="Dolan-More CPU Time Profile" width="800"/>
+</p>
+
+### Hardware-Agnostic Computational Cost (Function/Gradient Calls)
+While CPU time can fluctuate based on hardware and background OS processes, tracking the raw number of objective function and gradient evaluations provides a pure metric of algorithmic expense. In this profile, Newton's method maintains its lead due to its quadratic leaps, while Steepest Descent requires orders of magnitude more evaluations to satisfy the convergence tolerance.
+<p align="center">
+  <img src="./assets/function_calls.png" alt="Dolan-More Function Calls Profile" width="800"/>
+</p>
 ---
 
 ## Installation & Setup
