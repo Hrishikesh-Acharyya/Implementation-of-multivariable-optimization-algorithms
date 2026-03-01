@@ -1,8 +1,9 @@
 import numpy as np
-import matplotlib.pyplot as plt
 import sys
 from objective_functions import Rosenbrock, EasonFenton, Woods, Quadratic
 from optimization import steepest_descent, newton, bfgs
+import plotly.graph_objects as go
+import matplotlib.pyplot as plt
 
 def get_float_input(prompt, default_val):
     """Helper to get robust float inputs from the terminal."""
@@ -15,39 +16,84 @@ def get_float_input(prompt, default_val):
         print("Invalid input. Using default.")
         return default_val
 
-def plot_2d_function(func_obj, path_x, path_f, title_prefix):
-    """Plots 3D Surface and Contour for 2D functions."""
-    x1_range = np.linspace(-3, 3, 50)
-    x2_range = np.linspace(-3, 3, 50)
-    X1, X2 = np.meshgrid(x1_range, x2_range)
+def plot_plotly_3d(func_obj, path_x, path_f, title="Optimization Path"):
+    """
+    Renders an interactive 3D WebGL surface plot of the objective function
+    and animates/overlays the optimization trajectory.
+    """
+    # 1. Define the spatial boundaries for the mesh grid
+    # We dynamically pad the grid based on where the algorithm traveled
+    x_min, x_max = min(path_x[:, 0]) - 1, max(path_x[:, 0]) + 1
+    y_min, y_max = min(path_x[:, 1]) - 1, max(path_x[:, 1]) + 1
+    
+    # 2. Create the high-resolution mesh grid
+    x = np.linspace(x_min, x_max, 100)
+    y = np.linspace(y_min, y_max, 100)
+    X, Y = np.meshgrid(x, y)
+    
+    # Evaluate the Z heights for the surface
+    Z = np.zeros_like(X)
+    for i in range(X.shape[0]):
+        for j in range(X.shape[1]):
+            Z[i, j] = func_obj.evaluate([X[i, j], Y[i, j]])
+            
+    # Clip extreme Z values for functions like Eason-Fenton so the plot doesn't distort
+    z_max_plot = max(path_f) * 2  # Cap the height at 2x the highest point in our path
+    Z = np.clip(Z, a_min=None, a_max=z_max_plot)
 
-    Z = np.zeros_like(X1)
-    for i in range(X1.shape[0]):
-        for j in range(X1.shape[1]):
-            Z[i, j] = func_obj.evaluate([X1[i, j], X2[i, j]])
+    # 3. Build the Plotly Figure
+    fig = go.Figure()
 
-    fig = plt.figure(figsize=(15, 6))
+    # Add the 3D Topographical Surface
+    fig.add_trace(go.Surface(
+        z=Z, x=X, y=Y, 
+        colorscale='Viridis', 
+        opacity=0.8,
+        name='Objective Topology',
+        showscale=False
+    ))
 
-    # 3D Surface
-    ax1 = fig.add_subplot(1, 2, 1, projection='3d')
-    ax1.plot_surface(X1, X2, Z, cmap='viridis', alpha=0.7)
-    ax1.plot(path_x[:, 0], path_x[:, 1], path_f, 'r.-', linewidth=2, markersize=8, label='Path')
-    ax1.scatter(path_x[0, 0], path_x[0, 1], path_f[0], color='green', s=100, label='Start')
-    ax1.scatter(path_x[-1, 0], path_x[-1, 1], path_f[-1], color='red', s=100, label='End')
-    ax1.set_title(f'{title_prefix} - 3D Surface')
-    ax1.legend()
+    # Add the Optimization Path (Thick Red Line)
+    fig.add_trace(go.Scatter3d(
+        x=path_x[:, 0], y=path_x[:, 1], z=path_f,
+        mode='lines+markers',
+        line=dict(color='red', width=6),
+        marker=dict(size=4, color='red'),
+        name='Algorithm Path'
+    ))
 
-    # Contour
-    ax2 = fig.add_subplot(1, 2, 2)
-    contour = ax2.contour(X1, X2, Z, levels=30)
-    ax2.plot(path_x[:, 0], path_x[:, 1], 'r.-', linewidth=2, markersize=6, label='Path')
-    ax2.scatter(path_x[0, 0], path_x[0, 1], color='green', s=100, label='Start', zorder=5)
-    ax2.scatter(path_x[-1, 0], path_x[-1, 1], color='red', s=100, label='End', zorder=5)
-    ax2.set_title(f'{title_prefix} - Contour')
-    ax2.legend()
+    # Add a massive Green Dot for the Start Point
+    fig.add_trace(go.Scatter3d(
+        x=[path_x[0, 0]], y=[path_x[0, 1]], z=[path_f[0]],
+        mode='markers',
+        marker=dict(size=8, color='green', symbol='circle'),
+        name='Start'
+    ))
 
-    plt.tight_layout()
-    plt.show()
+    # Add a massive Gold Star for the End Point (Minimum)
+    fig.add_trace(go.Scatter3d(
+        x=[path_x[-1, 0]], y=[path_x[-1, 1]], z=[path_f[-1]],
+        mode='markers',
+        marker=dict(size=10, color='gold', symbol='diamond'),
+        name='Convergence Point'
+    ))
+
+    # 4. Update the layout aesthetics
+    fig.update_layout(
+        title=dict(text=title, font=dict(size=20)),
+        scene=dict(
+            xaxis_title='X1',
+            yaxis_title='X2',
+            zaxis_title='f(X1, X2)',
+            camera=dict(
+                eye=dict(x=1.5, y=1.5, z=1.2) # Default viewing angle
+            )
+        ),
+        margin=dict(l=0, r=0, b=0, t=40)
+    )
+
+    # Launch the interactive HTML viewer in the default web browser
+    fig.show()
 
 def plot_convergence(path_f, title_prefix):
     """Plots a convergence graph for higher dimensional functions (like Wood's)."""
@@ -163,7 +209,7 @@ def main_menu():
         print("\nGenerating plots... (Close the plot window to continue)")
         title_prefix = f"{opt_name} on {func_name}"
         if dim == 2:
-            plot_2d_function(func, path_x, path_f, title_prefix)
+            plot_plotly_3d(func, path_x, path_f, title_prefix)
         else:
             plot_convergence(path_f, title_prefix)
             
@@ -175,4 +221,3 @@ def main_menu():
 
 if __name__ == "__main__":
     main_menu()
-    input("\nPress Enter to close...")  # Keeps window open after completion
