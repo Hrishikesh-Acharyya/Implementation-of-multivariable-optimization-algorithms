@@ -39,7 +39,7 @@ class Rosenbrock:
 
 class EasonFenton:
     """
-    Eason and Fenton function.
+    Eason and Fenton function. 4 global minimas
     """
     def evaluate(self, x):
         x1, x2 = x[0], x[1]
@@ -99,7 +99,7 @@ class Woods:
 
 class Quadratic:
     """
-    Simple Quadratic function: f(x1,x2) = 100*x1^2 + x2^2
+    Simple Quadratic function: f(x1,x2) = a*x1^2 + b*x2^2
     Global minimum at (0, 0)
     """
     def __init__(self,a = 1.0,b = 1.0):
@@ -115,5 +115,4 @@ class Quadratic:
         return np.array([2 * self.a * x1, 2 * self.b * x2])
 
     def hessian(self, x):
-        # The Hessian of a simple quadratic is constant
         return np.array([[2 * self.a, 0], [0, 2 * self.b]])
