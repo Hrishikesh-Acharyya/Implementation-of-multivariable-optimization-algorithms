@@ -392,7 +392,7 @@ def bfgs(func_obj, starting_point, ls_type='backtracking', tolerance=1e-8, max_i
             term2 = I - rho * np.outer(r_k, s_k)
             H_inv = term1 @ H_inv @ term2 + rho * np.outer(s_k, s_k)
 
-        # Prepare for next iteration
+        # Prepare for the next iteration
         x0 = x1
         grad0 = grad1
         count += 1
