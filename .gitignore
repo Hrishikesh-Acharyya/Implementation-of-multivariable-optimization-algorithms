@@ -14,3 +14,5 @@ Thumbs.db
 # Optimization output/logs (if you generate any)
 *.log
 results/
+
+BENCHMARK_COMPREHENSIVE_GUIDE.md

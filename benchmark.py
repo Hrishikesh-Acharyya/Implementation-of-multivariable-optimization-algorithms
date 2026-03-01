@@ -9,8 +9,15 @@ from objective_functions import Rosenbrock, Woods, EasonFenton
 
 class TrackedFunction:
     """
-    A wrapper class that intercepts and counts every time an algorithm 
-    evaluates the function, gradient, or Hessian. 
+    A decorator-style wrapper that intercepts and increments a counter every time 
+    an optimization algorithm evaluates the objective function, gradient, or Hessian.
+
+    Attributes:
+    -----------
+    func_obj : object
+        The underlying mathematical objective function (e.g., Rosenbrock).
+    calls : int
+        The cumulative count of all mathematical evaluations performed.
     """
     def __init__(self, func_obj):
         self.func_obj = func_obj
@@ -33,7 +40,19 @@ class TrackedFunction:
         return self.func_obj.__class__.__name__
 
 def plot_convergence_rates(solvers, functions):
-    """Generates the Logarithmic Convergence Curves (f(x) vs Iterations)"""
+    """
+    Generates a multi-panel figure showing the logarithmic error decay of each 
+    solver across different topologies from a fixed starting point.
+
+    Visualization Logic:
+    --------------------
+    * X-axis: Iteration Number.
+    * Y-axis: Log10(f(x)).
+    * Mathematical Interpretation: 
+        - A straight diagonal slope indicates Linear Convergence (Steepest Descent).
+        - An accelerating downward curve indicates Superlinear (BFGS) or 
+          Quadratic (Newton) Convergence.
+    """
     print("\n--- Generating Convergence Rate Curves ---")
     fig, axes = plt.subplots(1, len(functions), figsize=(16, 5))
     
@@ -63,8 +82,17 @@ def plot_convergence_rates(solvers, functions):
 
 def run_comprehensive_dolan_more(solvers, functions, runs_per_func=50):
     """
-    Executes all solvers across all functions with randomized starts.
-    Tracks CPU Time, Iterations, and Function Calls.
+    Executes a large-scale statistical benchmark by running all solvers across 
+    multiple randomized starting points and aggregating performance data.
+
+    Benchmark Methodology:
+    ----------------------
+    1. Randomized Starts: For each function, 'n' starting points are generated 
+       uniformly between [-3.0, 3.0].
+    2. Data Aggregation: The script records CPU time, iteration counts, and 
+       total function calls (via TrackedFunction) for every run.
+    3. Error Handling: Failed optimizations or numerical explosions (NaN) are 
+       assigned a value of 'inf', representing a failure to solve the problem.
     """
     print(f"\n--- Initiating Comprehensive Dolan-Moré Benchmark ---")
     
@@ -102,7 +130,7 @@ def run_comprehensive_dolan_more(solvers, functions, runs_per_func=50):
                     
             problem_idx += 1
 
-    # --- THE FIX: Extracting Function Names for the Titles ---
+    #  Extracting Function Names for the Titles 
     solver_names = [s.__name__ for s in solvers]
     
     # Dynamically build a string of the test function names
@@ -148,7 +176,7 @@ def plot_single_profile(data_matrix, solver_names, title):
     plt.xscale('log')
     plt.xlabel('Performance Ratio $\\tau$ (Log Scale)')
     plt.ylabel('Fraction of Problems Solved $\\rho_s(\\tau)$')
-    plt.title(title, fontweight='bold', fontsize=12) # Added fontsize control
+    plt.title(title, fontweight='bold', fontsize=12) 
     plt.legend(loc='lower right')
     plt.grid(True, which="both", ls="--", alpha=0.5)
     plt.tight_layout()
@@ -162,4 +190,4 @@ if __name__ == "__main__":
     plot_convergence_rates(test_solvers, test_functions)
     
     # 2. Show the statistical robustness (150 combined tests)
-    run_comprehensive_dolan_more(test_solvers, test_functions, runs_per_func=50)
+    run_comprehensive_dolan_more(test_solvers, test_functions, runs_per_func=30)
