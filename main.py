@@ -1,6 +1,6 @@
 import numpy as np
 import sys
-from objective_functions import Rosenbrock, EasonFenton, Woods, Quadratic
+from objective_functions import Rosenbrock, Eason_Fenton, Woods, Quadratic
 from optimization import steepest_descent, newton, bfgs
 import plotly.graph_objects as go
 import matplotlib.pyplot as plt
@@ -177,7 +177,7 @@ def main_menu():
             func_name = f"Rosenbrock (a={a}, b={b})"
             dim = 2
         elif func_choice == '2':
-            func = EasonFenton()
+            func = Eason_Fenton()
             func_name = "Eason-Fenton"
             dim = 2
         elif func_choice == '3':

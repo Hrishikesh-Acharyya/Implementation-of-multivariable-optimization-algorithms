@@ -1,11 +1,19 @@
 import numpy as np
-import time
+import time #Built-in timing module for measuring CPU time
 import matplotlib.pyplot as plt
 import os
 import contextlib
 
 from optimization import steepest_descent, newton, bfgs
-from objective_functions import Rosenbrock, Woods, EasonFenton
+from objective_functions import Rosenbrock, Woods, Eason_Fenton
+
+
+GLOBAL_MINIMA = {
+    'Rosenbrock': 0.0,
+    'Woods': 0.0,
+    'EasonFenton': 1.77101,  # Approximate minimum
+    'Quadratic': 0.0
+}
 
 class TrackedFunction:
     """
@@ -62,9 +70,9 @@ def plot_convergence_rates(solvers, functions):
         start_pt = np.full(dim, -1.2) 
         
         for solver in solvers:
-            # Mute terminal output
-            with open(os.devnull, 'w') as f, contextlib.redirect_stdout(f):
-                _, _, path_f = solver(func_raw, start_pt, max_iter=2000)
+            
+            with open(os.devnull, 'w') as f, contextlib.redirect_stdout(f): # Mutes terminal output
+                _, _, path_f = solver(func_raw, start_pt, max_iter=2000) # discard optimal point and path_x, only keep path_f for plotting
             
             # Plot Log10(f(x)). Added 1e-15 to prevent log(0) domain errors
             ax.plot(np.log10(np.array(path_f) + 1e-15), 
@@ -72,7 +80,7 @@ def plot_convergence_rates(solvers, functions):
 
         ax.set_title(f"{func_raw.__class__.__name__}", fontweight='bold')
         ax.set_xlabel("Iterations")
-        ax.set_ylabel("Log10 Error")
+        ax.set_ylabel("Log10 Function Value")
         ax.grid(True, ls="--", alpha=0.5)
         ax.legend()
 
@@ -88,28 +96,40 @@ def run_comprehensive_dolan_more(solvers, functions, runs_per_func=50):
     Benchmark Methodology:
     ----------------------
     1. Randomized Starts: For each function, 'n' starting points are generated 
-       uniformly between [-3.0, 3.0].
+       uniformly between [-5.0, 5.0].
     2. Data Aggregation: The script records CPU time, iteration counts, and 
        total function calls (via TrackedFunction) for every run.
     3. Error Handling: Failed optimizations or numerical explosions (NaN) are 
        assigned a value of 'inf', representing a failure to solve the problem.
     """
+
+    # solvers: list of  optimizer functions
+    # functions: list of  objective functions
+    # runs_per_func: default 30 random starts per function
+
     print(f"\n--- Initiating Comprehensive Dolan-Moré Benchmark ---")
     
-    total_problems = len(functions) * runs_per_func
+    total_problems = len(functions) * runs_per_func #3*30 = 90
     print(f"Total topological problems to solve: {total_problems} per algorithm...")
     
-    # Storage matrices: shape (total_problems, num_solvers)
+    # Storage matrices: shape (total_problems, num_solvers) ((3*30,3)  = (90,3) in this case)
+    #initialize with np.inf to represent unsolved problems by default
+
     times = np.full((total_problems, len(solvers)), np.inf)
     iters = np.full((total_problems, len(solvers)), np.inf)
     calls = np.full((total_problems, len(solvers)), np.inf)
     
     problem_idx = 0
     
+
+    # Outer loop: Different function topologies (variety)
+    # Middle loop: Different starting points 
+    # Inner loop: Different algorithms (comparison)
+
     for func_raw in functions:
         dim = 4 if func_raw.__class__.__name__ == 'Woods' else 2
-        starts = np.random.uniform(-3.0, 3.0, (runs_per_func, dim))
-        
+        starts = np.random.uniform(-5.0, 5.0, (runs_per_func, dim))
+    
         for start_point in starts:
             for s_idx, solver in enumerate(solvers):
                 # Wrap the function to reset the counter to 0 for this run
@@ -120,8 +140,19 @@ def run_comprehensive_dolan_more(solvers, functions, runs_per_func=50):
                     with open(os.devnull, 'w') as f, contextlib.redirect_stdout(f):
                         x_opt, path_x, path_f = solver(tracked_target, start_point, max_iter=5000)
                     
-                    # Verify it didn't just get stuck on a wall
-                    if path_f[-1] < 1e-1: 
+                    # Verify convergence using function-aware tolerance
+                    func_name = func_raw.__class__.__name__
+                    true_min = GLOBAL_MINIMA.get(func_name, 0.0)
+                    
+                    # Use relative tolerance (within 20% of global minimum)
+                    # For zero-minimum functions: absolute tolerance of 0.1
+                    if true_min == 0.0:
+                        converged = path_f[-1] < 0.1
+                    else:
+                        relative_error = abs(path_f[-1] - true_min) / abs(true_min)
+                        converged = relative_error < 0.2  # Within 20% of true minimum
+                    
+                    if converged:
                         times[problem_idx, s_idx] = time.perf_counter() - start_time
                         iters[problem_idx, s_idx] = len(path_f) - 1
                         calls[problem_idx, s_idx] = tracked_target.calls
@@ -146,7 +177,29 @@ def run_comprehensive_dolan_more(solvers, functions, runs_per_func=50):
     plot_single_profile(calls, solver_names, title_calls)
 
 def plot_single_profile(data_matrix, solver_names, title):
-    """Calculates and plots a single Dolan-More CDF."""
+    """
+    Calculates and renders a Dolan-Moré Performance Profile.
+
+    What is a Dolan-Moré Profile?
+    -----------------------------
+    A performance profile is a Cumulative Distribution Function (CDF) used to 
+    compare the relative performance of solvers.
+
+    How to Interpret the Graphs:
+    ----------------------------
+    * Performance Ratio (tau) [X-axis]: Represents the multiple of the best 
+      solver's performance. (e.g., tau=2 means the solver was twice as slow 
+      as the fastest solver for that problem).
+    * Efficiency (rho) [Y-axis]: The fraction of the total problem set solved 
+      within a specific tau.
+    * Key Insights:
+        - The Y-intercept (rho at tau=1) shows how often a solver was the 
+          absolute best performer in the set.
+        - The point where a line hits 1.0 shows the threshold at which the 
+          solver successfully completed all problems.
+        - Lines that stay higher and further to the left represent the most 
+          robust and efficient algorithms.
+    """
     min_vals = np.min(data_matrix, axis=1)
     
     # Filter out problems where EVERY solver failed
@@ -159,9 +212,10 @@ def plot_single_profile(data_matrix, solver_names, title):
         return
         
     ratios = data_matrix / min_vals
-    taus = np.logspace(0, 3, 500)
+    taus = np.logspace(0, 3, 500) # Evenly spaced on log scale in [10^0, 10^3]
     rho = np.zeros((len(taus), len(solver_names)))
     
+    #CDF computation: For each solver, calculate the fraction of problems solved within each tau threshold
     for s_idx in range(len(solver_names)):
         for t_idx, tau in enumerate(taus):
             rho[t_idx, s_idx] = np.sum(ratios[:, s_idx] <= tau) / len(data_matrix)
@@ -183,7 +237,7 @@ def plot_single_profile(data_matrix, solver_names, title):
     plt.show()
 
 if __name__ == "__main__":
-    test_functions = [Rosenbrock(), Woods(), EasonFenton()]
+    test_functions = [Rosenbrock(), Woods(), Eason_Fenton()]
     test_solvers = [steepest_descent, newton, bfgs]
     
     # 1. Show the mathematical convergence properties

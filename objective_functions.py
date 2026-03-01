@@ -37,7 +37,7 @@ class Rosenbrock:
         ])
 
 
-class EasonFenton:
+class Eason_Fenton:
     """
     Eason and Fenton function. 4 global minimas
     """
