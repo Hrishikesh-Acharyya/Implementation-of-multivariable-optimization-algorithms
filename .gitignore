@@ -1,0 +1,16 @@
+# Python bytecode (the "junk" files)
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Editor-specific settings
+.vscode/
+.idea/
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+
+# Optimization output/logs (if you generate any)
+*.log
+results/
